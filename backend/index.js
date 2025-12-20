@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config();
 console.log("\n==================================");
 console.log("🚀 STARTING SCHOOL BACKEND SYSTEM");
 console.log("==================================");
