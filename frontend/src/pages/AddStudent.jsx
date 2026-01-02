@@ -40,10 +40,16 @@ const AddStudent = () => {
                 // For now, let's just mock a standard set of classes or use what we had if API exists
                 // We'll trust the existing API endpoint if it works, or fallback to simple options
                 const res = await axios.get(`${config.API_URL}/api/classes`, { timeout: 5000 });
-                setClasses(res.data);
+
+                // If API returns data, use it. IF EMPTY, use defaults (so dropdown isn't blank)
+                if (res.data && res.data.length > 0) {
+                    setClasses(res.data);
+                } else {
+                    console.log("API returned 0 classes, using Fallback Defaults.");
+                    throw new Error("No classes found in DB"); // Trigger catch block to load defaults
+                }
             } catch (err) {
                 console.error("Failed to fetch classes, using defaults", err);
-                if (err.response) console.error("Server Error Details:", err.response.data);
                 // Fallback defaults for demo
                 const defaults = [];
                 for (let i = 1; i <= 10; i++) {
