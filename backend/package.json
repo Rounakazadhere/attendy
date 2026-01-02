@@ -2,11 +2,11 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "dev": "nodemon --env-file=.env index.js"
+    "start": "node app.js",
+    "dev": "nodemon --env-file=.env app.js"
   },
   "keywords": [],
   "author": "",
