@@ -61,8 +61,6 @@ server.listen(PORT, () => {
 });
 
 // --- MOUNT ROUTES ---
-// --- MOUNT ROUTES ---
-// --- MOUNT ROUTES ---
 app.use('/api/auth', authRoutes);        // Handles /api/auth/...
 // --- RESTORED IMPORTS ---
 import parentRoutes from './routes/parentRoutes.js';
