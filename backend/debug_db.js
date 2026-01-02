@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-const MONGO_URI = 'mongodb+srv://rnk:rnkrnk@cluster0.i2hud05.mongodb.net/?appName=Cluster0';
 
 console.log("Attempting to connect to:", MONGO_URI);
 
