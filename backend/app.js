@@ -73,8 +73,7 @@ import reportsRoutes from './routes/reportsRoutes.js';
 import staffRoutes from './routes/staffAttendance.js';
 import classRoutes from './routes/classRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-import chatRoutes from './routes/chatRoutes.js'; // NEW CHAT
-
+import chatRoutes from './routes/chatRoutes.js'; 
 // --- MOUNT ROUTES ---
 app.use('/api/students', studentRoutes); // Handles /api/students/...
 app.use('/api/auth', authRoutes);        // Handles /api/auth/...
