@@ -7,6 +7,8 @@ console.log("DEBUG: Loading Role Secrets...");
 console.log(` > PRINCIPAL: ${process.env.SECRET_PRINCIPAL || 'PRI@2025 (Default)'}`);
 console.log(` > TEACHER:   ${process.env.SECRET_TEACHER || 'TEA@2025 (Default)'}`);
 console.log("==================================\n");
+console.log("DEBUG: Environment Variables Keys:", Object.keys(process.env).join(", "));
+console.log("==================================\n");
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -41,7 +43,7 @@ app.use((req, res, next) => {
 });
 
 // --- DATABASE CONNECTION ---
-const DB_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rural-attendance';
+const DB_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/Attendy';
 console.log(`DEBUG: Full DB URI: ${DB_URI.replace(/:([^:@]+)@/, ':****@')}`); // Log sanitized URI
 
 mongoose.connect(DB_URI, {
