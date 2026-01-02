@@ -1,23 +1,31 @@
 import express from 'express';
 import Notice from '../models/Notice.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// 1. CREATE NOTICE
-router.post('/create', async (req, res) => {
+// 1. CREATE NOTICE (Protected)
+router.post('/create', protect, async (req, res) => {
     try {
-        const newNotice = new Notice(req.body);
+        // Map frontend fields compatibility if needed, or enforce matched schema
+        const { title, message, targetAudience, content, audience } = req.body;
+
+        const newNotice = new Notice({
+            title,
+            message: message || content, // Support both for compatibility
+            targetAudience: targetAudience || (audience === 'EVERYONE' ? 'ALL' : audience),
+            createdBy: req.user.id // From Token
+        });
+
         await newNotice.save();
-
-        // Future: Send Push Notifications via FCM
-
         res.status(201).json(newNotice);
     } catch (err) {
+        console.error("Notice Create Error:", err.message);
         res.status(400).json({ error: err.message });
     }
 });
 
-// 2. LIST ALL NOTICES
+// 2. LIST ALL NOTICES (Public or Protected? Let's keep public for now or protected)
 router.get('/list', async (req, res) => {
     try {
         const notices = await Notice.find()
@@ -29,8 +37,8 @@ router.get('/list', async (req, res) => {
     }
 });
 
-// 3. DELETE NOTICE
-router.delete('/:id', async (req, res) => {
+// 3. DELETE NOTICE (Protected)
+router.delete('/:id', protect, async (req, res) => {
     try {
         await Notice.findByIdAndDelete(req.params.id);
         res.json({ message: "Notice deleted" });

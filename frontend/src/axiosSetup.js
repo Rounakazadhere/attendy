@@ -11,6 +11,10 @@ const setupAxios = () => {
             const token = localStorage.getItem('token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
+                console.log("🟢 Axios Interceptor attached token:", token.substring(0, 10) + "...");
+            } else {
+                // Valid behavior for public pages (Login/Signup)
+                // console.debug("⚪ Axios Interceptor: No token found (Guest Mode)");
             }
             return config;
         },

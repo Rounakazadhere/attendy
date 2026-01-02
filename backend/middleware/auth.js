@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
+    const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey_change_this_later';
     let token;
 
     if (
@@ -13,27 +14,31 @@ export const protect = async (req, res, next) => {
             token = req.headers.authorization.split(' ')[1];
 
             // Verify token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'supersecretkey_change_this_later');
+            const decoded = jwt.verify(token, JWT_SECRET);
             console.log('DEBUG: Token Decoded', decoded);
 
+            const userId = decoded?.id || decoded?._id || decoded?.userId;
+            if (!userId) {
+                return res.status(401).json({ error: 'Not authorized', details: 'Invalid token payload: missing user id' });
+            }
+
             // Get user from the token
-            req.user = await User.findById(decoded.id).select('-password');
+            req.user = await User.findById(userId).select('-password');
             console.log('DEBUG: User Found?', !!req.user);
 
             if (!req.user) {
-                res.status(401);
-                throw new Error('Not authorized, user not found');
+                return res.status(401).json({ error: 'Not authorized', details: 'User not found' });
             }
 
-            next();
+            return next();
         } catch (error) {
             console.error('❌ MiddleWare Auth Error:', error.message);
-            res.status(401).json({ error: 'Not authorized', details: error.message });
+            return res.status(401).json({ error: 'Not authorized', details: error.message });
         }
     }
 
     if (!token) {
         console.log("❌ MiddleWare: No Token Provided");
-        res.status(401).json({ error: 'Not authorized - No Token Provided' });
+        return res.status(401).json({ error: 'Not authorized - No Token Provided' });
     }
 };

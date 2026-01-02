@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { Plus, X, Calendar, ClipboardList } from 'lucide-react';
+import { Plus, X, Calendar, ClipboardList, Pen, Trash2 } from 'lucide-react';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import config from '../src/config';
 
@@ -10,6 +10,8 @@ const Project = () => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedProjectId, setSelectedProjectId] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -40,19 +42,62 @@ const Project = () => {
         }
     };
 
-    const handleCreate = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`${config.API_URL}/api/projects`, formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (isEditMode) {
+                await axios.put(`${config.API_URL}/api/projects/${selectedProjectId}`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } else {
+                await axios.post(`${config.API_URL}/api/projects`, formData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
             setIsModalOpen(false);
             fetchProjects();
-            setFormData({ title: '', description: '', deadline: '', status: 'Active', progress: 0 });
+            resetForm();
         } catch (err) {
-            alert(err.response?.data?.error || "Failed to create project");
+            alert(err.response?.data?.error || "Failed to save project");
         }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this project?")) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${config.API_URL}/api/projects/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchProjects();
+        } catch (err) {
+            alert("Failed to delete project");
+        }
+    };
+
+    const openCreateModal = () => {
+        resetForm();
+        setIsEditMode(false);
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (project) => {
+        setFormData({
+            title: project.title,
+            description: project.description,
+            deadline: project.deadline ? project.deadline.split('T')[0] : '',
+            status: project.status,
+            progress: project.progress
+        });
+        setSelectedProjectId(project._id);
+        setIsEditMode(true);
+        setIsModalOpen(true);
+    };
+
+    const resetForm = () => {
+        setFormData({ title: '', description: '', deadline: '', status: 'Active', progress: 0 });
+        setSelectedProjectId(null);
     };
 
     return (
@@ -61,8 +106,8 @@ const Project = () => {
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition flex items-center gap-2"
+                    onClick={openCreateModal}
+                    className="bg-orange-400 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:bg-orange-900 transition flex items-center gap-2"
                 >
                     <Plus size={20} />
                     New Project
@@ -88,7 +133,7 @@ const Project = () => {
                             className="bg-white p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all border border-gray-100 flex flex-col h-full"
                         >
                             <div className={`h-2 w-full rounded-full mb-4 ${project.status === 'Completed' ? 'bg-green-500' :
-                                    project.status === 'On Hold' ? 'bg-orange-500' : 'bg-blue-500'
+                                project.status === 'On Hold' ? 'bg-orange-500' : 'bg-blue-500'
                                 }`}></div>
 
                             <h2 className="text-2xl font-bold text-gray-800 mb-2 truncate" title={project.title}>{project.title}</h2>
@@ -101,9 +146,26 @@ const Project = () => {
                                 </div>
                             )}
 
+                            <div className="flex justify-end gap-2 mb-3">
+                                <button
+                                    onClick={() => openEditModal(project)}
+                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit Project"
+                                >
+                                    <Pen size={18} />
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(project._id)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Delete Project"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+
                             <div className="flex justify-between items-center mb-2">
                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${project.status === 'Completed' ? 'bg-green-100 text-green-600' :
-                                        project.status === 'On Hold' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
+                                    project.status === 'On Hold' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
                                     }`}>
                                     {project.status}
                                 </span>
@@ -112,7 +174,7 @@ const Project = () => {
                             <div className="w-full bg-gray-200 rounded-full h-2.5">
                                 <div
                                     className={`h-2.5 rounded-full ${project.status === 'Completed' ? 'bg-green-500' :
-                                            project.status === 'On Hold' ? 'bg-orange-500' : 'bg-blue-500'
+                                        project.status === 'On Hold' ? 'bg-orange-500' : 'bg-blue-500'
                                         }`}
                                     style={{ width: `${project.progress}%` }}
                                 ></div>
@@ -122,7 +184,7 @@ const Project = () => {
                 </div>
             )}
 
-            {/* Create Project Modal */}
+            {/* Create/Edit Project Modal */}
             <AnimatePresence>
                 {isModalOpen && (
                     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -133,12 +195,12 @@ const Project = () => {
                             className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden"
                         >
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                <h3 className="font-bold text-lg text-gray-800">Create New Project</h3>
+                                <h3 className="font-bold text-lg text-gray-800">{isEditMode ? 'Edit Project' : 'Create New Project'}</h3>
                                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                                     <X size={20} />
                                 </button>
                             </div>
-                            <form onSubmit={handleCreate} className="p-6 space-y-4">
+                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Project Title</label>
                                     <input
@@ -168,24 +230,40 @@ const Project = () => {
                                             onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Progress (%)</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={formData.progress}
-                                            onChange={(e) => setFormData({ ...formData, progress: e.target.value })}
-                                        />
-                                    </div>
                                 </div>
+                                {isEditMode && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                            <select
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={formData.status}
+                                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            >
+                                                <option value="Active">Active</option>
+                                                <option value="On Hold">On Hold</option>
+                                                <option value="Completed">Completed</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Progress (%)</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={formData.progress}
+                                                onChange={(e) => setFormData({ ...formData, progress: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="pt-2">
                                     <button
                                         type="submit"
                                         className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-500/30"
                                     >
-                                        Create Project
+                                        {isEditMode ? 'Update Project' : 'Create Project'}
                                     </button>
                                 </div>
                             </form>
@@ -193,7 +271,7 @@ const Project = () => {
                     </div>
                 )}
             </AnimatePresence>
-        </DashboardLayout>
+        </DashboardLayout >
     );
 };
 

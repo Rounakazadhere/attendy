@@ -1,0 +1,12 @@
+[dotenv@17.2.3] injecting env (9) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+
+==================================
+🚀 STARTING SCHOOL BACKEND SYSTEM
+==================================
+DEBUG: Loading Role Secrets...
+ > PRINCIPAL: PRI@2025
+ > TEACHER:   TEA@2025
+==================================
+
+🚀 Server running on Port 5555
+✅ MongoDB Connected

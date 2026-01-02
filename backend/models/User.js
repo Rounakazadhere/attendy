@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -32,8 +33,26 @@ const userSchema = new mongoose.Schema({
     lat: { type: Number }, // Latitude of School/Office
     lng: { type: Number }, // Longitude of School/Office
     radius: { type: Number, default: 200 } // Allowed radius in meters (default 200m)
-  }
+  },
+
+  // Password Reset
+  resetPasswordToken: String,
+  resetPasswordExpire: Date
 
 }, { timestamps: true });
+
+// Pre-save hook to hash password
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) {
+    return;
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  } catch (err) {
+    throw err;
+  }
+});
 
 export default mongoose.model('User', userSchema);

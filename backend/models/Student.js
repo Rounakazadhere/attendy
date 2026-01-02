@@ -5,6 +5,7 @@ const studentSchema = new mongoose.Schema({
   rollNumber: { type: String, required: true }, // Unique per class (handled by index)
   classSection: { type: String, required: true },
   parentPhone: { type: String },
+  parentEmail: { type: String },
   status: { type: String, default: "Present" },
 
   // New Fields for Dashboard

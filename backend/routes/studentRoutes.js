@@ -5,6 +5,8 @@ import User from '../models/User.js'; // Added User model import
 import ClassLog from '../models/ClassLog.js';
 import Attendance from '../models/Attendance.js';
 import Class from '../models/Class.js';
+import Message from '../models/Message.js'; // Added Message Model
+import sendEmail from '../utils/sendEmail.js';
 
 const router = express.Router();
 import { protect } from '../middleware/auth.js';
@@ -56,6 +58,62 @@ router.get('/', protect, authorize('ADMIN', 'PRINCIPAL', 'STAFF', 'STATE_ADMIN',
     }
 });
 
+// 0.7 GET NEXT ROLL NUMBER (Auto-Allocation)
+router.get('/next-roll/:section', protect, authorize('ADMIN', 'PRINCIPAL', 'STATE_ADMIN'), async (req, res) => {
+    try {
+        const { section } = req.params;
+        // Find student with highest roll number (assuming numeric or standard format like 1A01 if mixed)
+        // Since schema has rollNumber as String, we need to be careful.
+        // If format is like "1", "2", "3", we can cast.
+        // If format is "1A01", we need a strategy.
+        // User's previous seed used "1A01".
+        // Let's regex to find the numeric part or just count + 1 for now if they want simple logic.
+        // Requirement: "next roll no". 
+        // Let's try to extract the max number from the string.
+
+        const students = await Student.find({ classSection: section });
+        let maxRoll = 0;
+
+        students.forEach(s => {
+            // Try to extract number from "1A05" -> 5 or "21" -> 21
+            // If roll number is just digits:
+            if (/^\d+$/.test(s.rollNumber)) {
+                const num = parseInt(s.rollNumber);
+                if (num > maxRoll) maxRoll = num;
+            }
+            // If roll number is like '1A05' (Class+Section+Roll), extract suffix
+            else {
+                // Heuristic: take last 2 digits
+                const match = s.rollNumber.match(/\d+$/);
+                if (match) {
+                    const num = parseInt(match[0]);
+                    if (num > maxRoll) maxRoll = num;
+                }
+            }
+        });
+
+        const nextNum = maxRoll + 1;
+
+        // Format: [Class][Section][RollNo] (e.g., 6B03)
+        // Extract Class and Section from input "6B"
+        // Assuming format is Number followed by Letter(s)
+        const match = section.match(/^(\d+)([A-Z]+)$/i);
+        let formattedRoll = nextNum.toString();
+
+        if (match) {
+            const cls = match[1]; // "6"
+            const sec = match[2]; // "B"
+            // Pad number with leading zero if single digit
+            const paddedNum = nextNum.toString().padStart(2, '0');
+            formattedRoll = `${cls}${sec}${paddedNum}`;
+        }
+
+        res.json({ nextRoll: formattedRoll });
+    } catch (err) {
+        res.status(500).json({ error: "Could not calculate roll number" });
+    }
+});
+
 // 1. GET STUDENTS (Matches Frontend: axios.get('/api/students/5A'))
 router.get('/:section', protect, authorize('ADMIN', 'PRINCIPAL', 'STAFF', 'STATE_ADMIN', 'DISTRICT_ADMIN'), async (req, res) => {
     try {
@@ -83,61 +141,97 @@ router.post('/', protect, authorize('ADMIN', 'PRINCIPAL', 'STATE_ADMIN'), async 
     console.log("   Body:", JSON.stringify(req.body, null, 2));
 
     try {
-        const { name, rollNumber, classSection, parentPhone } = req.body;
+        const { name, rollNumber, classSection, parentPhone, parentEmail } = req.body;
 
-        // 1. Create Student
-        const newStudent = new Student(req.body);
+        // --- 1. PRE-CHECK FOR EXISTING PARENT CONFLICTS (Optional but safer) ---
+        // If we are creating a NEW parent, check if email/phone is taken by a NON-parent (or corrupted data)
+        // Ideally handled by unique indexes, but catching early helps.
+
+        // --- 2. CREATE STUDENT ---
+        const newStudent = new Student({
+            ...req.body,
+            parentEmail: parentEmail ? parentEmail.trim() : undefined
+        });
         await newStudent.save();
 
-        // 2. Create/Link Parent User
-        let parentUser = await User.findOne({ mobile: parentPhone, role: 'PARENT' });
-        let parentCredentials = null;
+        // --- 3. CREATE/LINK PARENT (With Rollback) ---
+        try {
+            // Find ANY user with this mobile (could be Parent, Staff, etc.)
+            let parentUser = await User.findOne({ mobile: parentPhone });
+            let parentCredentials = null;
 
-        if (!parentUser) {
-            // CREATE NEW PARENT ACCOUNT
-            const loginId = await generateParentId();
-            const rawPassword = `P@${Math.floor(1000 + Math.random() * 9000)}`;
-            const hashedPassword = await bcrypt.hash(rawPassword, 10);
-
-            parentUser = new User({
-                name: `Parent of ${name}`,
-                email: `parent.${loginId}@school.com`, // Dummy unique email
-                mobile: parentPhone,
-                password: hashedPassword,
-                role: 'PARENT',
-                employeeId: loginId,
-                childrenIds: [newStudent._id]
-            });
-            await parentUser.save();
-            parentCredentials = { loginId, password: rawPassword };
-        } else {
-            // LINK TO EXISTING PARENT
-            // Use $addToSet to prevent duplicates safely
-            parentUser = await User.findByIdAndUpdate(
-                parentUser._id,
-                { $addToSet: { childrenIds: newStudent._id } },
-                { new: true }
-            );
-
-            // Ensure they have an ID (migration fix)
-            if (!parentUser.employeeId) {
+            if (!parentUser) {
+                // CREATE NEW PARENT ACCOUNT
                 const loginId = await generateParentId();
-                parentUser.employeeId = loginId;
+                const rawPassword = `P@${Math.floor(1000 + Math.random() * 9000)}`;
+                // const hashedPassword = await bcrypt.hash(rawPassword, 10); // REMOVED: User model handles hashing
+
+                const sanitizedParentEmail = parentEmail ? parentEmail.trim() : '';
+                const parentUserEmail = sanitizedParentEmail
+                    ? sanitizedParentEmail
+                    : `parent.${loginId}@school.com`;
+
+                parentUser = new User({
+                    name: `Parent of ${name}`,
+                    email: parentUserEmail,
+                    mobile: parentPhone,
+                    password: rawPassword, // Pass RAW password, pre-save hook will hash it
+                    role: 'PARENT',
+                    employeeId: loginId,
+                    childrenIds: [newStudent._id]
+                });
                 await parentUser.save();
-                parentCredentials = { loginId: parentUser.employeeId, password: "(Use Existing)" };
+                parentCredentials = { loginId, password: rawPassword };
             } else {
-                parentCredentials = { loginId: parentUser.employeeId, password: "(Use Existing)" };
+                // LINK TO EXISTING PARENT
+                const updatedParent = await User.findByIdAndUpdate(
+                    parentUser._id,
+                    { $addToSet: { childrenIds: newStudent._id } },
+                    { new: true }
+                );
+
+                // Update Email if safe
+                if (parentEmail) {
+                    const sanitizedParentEmail = parentEmail.trim();
+                    const isDummy = updatedParent.email && updatedParent.email.includes('@school.com');
+                    if (!updatedParent.email || isDummy) {
+                        try {
+                            updatedParent.email = sanitizedParentEmail;
+                            await updatedParent.save();
+                        } catch (e) { console.log("Could not update parent email (duplicate?)", e.message); }
+                    }
+                }
+
+                // Credentials
+                if (!updatedParent.employeeId) {
+                    const loginId = await generateParentId();
+                    updatedParent.employeeId = loginId;
+                    await updatedParent.save();
+                    parentCredentials = { loginId: updatedParent.employeeId, password: "(Use Existing)" };
+                } else {
+                    parentCredentials = { loginId: updatedParent.employeeId, password: "(Use Existing)" };
+                }
             }
+
+            res.status(201).json({
+                student: newStudent,
+                parentCredentials
+            });
+
+        } catch (innerErr) {
+            console.error("❌ PARENT CREATION FAILED. ROLLING BACK STUDENT.", innerErr.message);
+            // ROLLBACK: Delete the student we just created so we don't have orphan/partial state
+            await Student.findByIdAndDelete(newStudent._id);
+            throw innerErr; // Re-throw to be caught by outer catch for response
         }
 
-        res.status(201).json({
-            student: newStudent,
-            parentCredentials
-        });
     } catch (err) {
-        console.error("ADD STUDENT ERROR:", err); // Log to terminal
+        console.error("ADD STUDENT ERROR:", err);
         if (err.code === 11000) {
-            return res.status(400).json({ error: "Roll Number already exists in this class!" });
+            if (err.keyPattern?.rollNumber) return res.status(400).json({ error: "Roll Number already exists in this class!" });
+            if (err.keyPattern?.mobile) return res.status(400).json({ error: "Parent Phone Number is already registered!" });
+            if (err.keyPattern?.email) return res.status(400).json({ error: "Parent Email is already registered!" });
+            return res.status(400).json({ error: "Duplicate entry detected." });
         }
         res.status(400).json({ error: err.message });
     }
@@ -147,9 +241,18 @@ router.post('/', protect, authorize('ADMIN', 'PRINCIPAL', 'STATE_ADMIN'), async 
 router.post('/attendance', protect, authorize('ADMIN', 'STAFF', 'PRINCIPAL', 'STATE_ADMIN'), async (req, res) => {
     const { studentId, status, markedBy } = req.body;
     try {
+        const normalizeStatus = (rawStatus) => {
+            const s = (rawStatus || '').toString().trim().toLowerCase();
+            if (s === 'present' || s === 'p') return 'Present';
+            if (s === 'absent' || s === 'a') return 'Absent';
+            if (s === 'late' || s === 'l') return 'Late';
+            return rawStatus;
+        };
+
+        const normalizedStatus = normalizeStatus(status);
         // ... (rest of logic) ...
         // Keeping this untouched as Teachers NEED to mark attendance
-        const student = await Student.findByIdAndUpdate(studentId, { status: status }, { new: true });
+        const student = await Student.findByIdAndUpdate(studentId, { status: normalizedStatus }, { new: true });
         if (!student) return res.status(404).json({ error: "Student not found" });
 
         const grade = student.classSection.slice(0, -1);
@@ -160,7 +263,7 @@ router.post('/attendance', protect, authorize('ADMIN', 'STAFF', 'PRINCIPAL', 'ST
             const today = new Date().toISOString().split('T')[0];
             await Attendance.findOneAndUpdate(
                 { studentId, date: today },
-                { classId: cls._id, status, markedBy },
+                { classId: cls._id, status: normalizedStatus, markedBy },
                 { upsert: true, new: true }
             );
         }
@@ -168,6 +271,56 @@ router.post('/attendance', protect, authorize('ADMIN', 'STAFF', 'PRINCIPAL', 'ST
         if (req.io) {
             req.io.emit('attendance_update', { studentId, status });
         }
+
+        // --- NOTIFICATION LOGIC (Email + Database Message) ---
+        // Find Parent (Try linked IDs first, then phone fallback)
+        let parent = await User.findOne({ childrenIds: studentId });
+        if (!parent && student.parentPhone) {
+            parent = await User.findOne({ mobile: student.parentPhone });
+        }
+
+        if (parent) {
+            const messageContent = `Your child ${student.name} has been marked ${status} today (${new Date().toLocaleDateString()}).`;
+
+            // 1. Create In-App Message (Always)
+            await Message.create({
+                senderId: req.user._id,
+                receiverId: parent._id,
+                studentId: student._id,
+                content: messageContent,
+                read: false
+            });
+
+            // 2. Send Email (Only if Email exists & status is Absent OR Late)
+            if (['Absent', 'Late'].includes(normalizedStatus)) {
+                const isRealEmail = (email) => {
+                    const e = (email || '').toString().trim();
+                    return !!e && !e.includes('@school.com');
+                };
+
+                const recipientEmail = isRealEmail(parent.email)
+                    ? parent.email
+                    : (isRealEmail(student.parentEmail) ? student.parentEmail : null);
+
+                if (recipientEmail) {
+                    try {
+                        const subject = normalizedStatus === 'Absent'
+                            ? `Attendance Alert: ${student.name} is Absent`
+                            : `Attendance Update: ${student.name} is Late`;
+
+                        await sendEmail({
+                            email: recipientEmail,
+                            subject: subject,
+                            message: `Dear Parent,\n\n${messageContent}\n\nRegards,\nSchool Admin`
+                        });
+                        console.log(`📧 Email sent to ${recipientEmail} (${normalizedStatus})`);
+                    } catch (emailErr) {
+                        console.error('Attendance email send failed:', emailErr.message);
+                    }
+                }
+            }
+        }
+        // ---------------------------------
 
         res.json({ success: true });
     } catch (err) {
@@ -216,7 +369,7 @@ router.delete('/:id', protect, authorize('ADMIN', 'PRINCIPAL', 'STATE_ADMIN'), a
 });
 
 // 5. ADD CLASS LOG (What taught today)
-router.post('/log', protect, authorize('ADMIN', 'STAFF', 'STATE_ADMIN'), async (req, res) => {
+router.post('/log', protect, authorize('ADMIN', 'STAFF', 'STATE_ADMIN', 'PRINCIPAL'), async (req, res) => {
     try {
         const { teacherId, classSection, subject, topic, date } = req.body;
 

@@ -71,5 +71,22 @@ router.patch('/:id/toggle', protect, authorize('ADMIN', 'PRINCIPAL', 'STAFF', 'S
         res.status(400).json({ error: err.message });
     }
 });
+// Delete Task
+router.delete('/:id', protect, authorize('ADMIN', 'PRINCIPAL', 'STAFF', 'STATE_ADMIN', 'DISTRICT_ADMIN', 'HEADMASTER'), async (req, res) => {
+    try {
+        const task = await Task.findById(req.params.id);
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        // Authorization Check: Only Creator or Admin can delete
+        if (task.createdBy.toString() !== req.user.id && !['ADMIN', 'PRINCIPAL'].includes(req.user.role)) {
+            return res.status(403).json({ error: 'Not authorized to delete this task' });
+        }
+
+        await task.deleteOne();
+        res.json({ message: 'Task deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 export default router;

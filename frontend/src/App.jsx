@@ -1,33 +1,36 @@
 import { useState, Suspense, lazy } from 'react'
 import './App.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Nav from '../components/Nav';
+import Nav from './components/Nav';
 import { AuthProvider } from './context/AuthContext';
 
 // Lazy Imports
-import ProtectedRoute from '../components/ProtectedRoute';
-import Unauthorized from '../pages/Unauthorized';
+import ProtectedRoute from './components/ProtectedRoute';
+import Unauthorized from './pages/Unauthorized';
 
-const Home = lazy(() => import('../pages/Home'));
-const Login = lazy(() => import('../pages/Login'));
-const Signup = lazy(() => import('../pages/Signup'));
-const Dashboard = lazy(() => import('../pages/Dashboard')); // Redirector
-const AddStudent = lazy(() => import('../pages/AddStudent'));
-const Attendance = lazy(() => import('../pages/Attendance'));
-const StaffAttendance = lazy(() => import('../pages/StaffAttendance'));
-const ForgotPassword = lazy(() => import('../pages/ForgotPassword'));
-const Project = lazy(() => import('../pages/Project'));
-const Leave = lazy(() => import('../pages/Leave'));
-const Plans = lazy(() => import('../pages/Plans'));
-const PlanDetails = lazy(() => import('../pages/PlanDetails'));
-const ManageStudents = lazy(() => import('../pages/ManageStudents'));
-const Chat = lazy(() => import('../pages/Chat'));
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Dashboard = lazy(() => import('./pages/Dashboard')); // Redirector
+const AddStudent = lazy(() => import('./pages/AddStudent'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const StaffAttendance = lazy(() => import('./pages/StaffAttendance'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Project = lazy(() => import('./pages/Project'));
+const Leave = lazy(() => import('./pages/Leave'));
+const Plans = lazy(() => import('./pages/Plans'));
+const PlanDetails = lazy(() => import('./pages/PlanDetails'));
+const ManageStudents = lazy(() => import('./pages/ManageStudents'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 // Role Specific Dashboards
-const PrincipalDashboard = lazy(() => import('../pages/PrincipalDashboard'));
-const TeacherDashboard = lazy(() => import('../pages/TeacherDashboard'));
-const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
-const ParentDashboard = lazy(() => import('../pages/ParentDashboard'));
+const PrincipalDashboard = lazy(() => import('./pages/PrincipalDashboard'));
+const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
 
 function App() {
   return (
@@ -46,6 +49,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
 
 
@@ -79,6 +83,8 @@ function App() {
                 <Route path="/plans/:id" element={<PlanDetails />} />
                 <Route path="/projects" element={<Project />} />
                 <Route path="/manage-students" element={<ManageStudents />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
 
               {/* ADMIN ROUTES */}

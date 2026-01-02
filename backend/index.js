@@ -41,14 +41,28 @@ app.use((req, res, next) => {
 });
 
 // --- DATABASE CONNECTION ---
-// --- DATABASE CONNECTION ---
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rural-attendance')
-    .then(() => console.log('✅ MongoDB Connected'))
-    .catch(err => console.error('❌ DB Error:', err));
+const DB_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/rural-attendance';
+console.log(`DEBUG: Full DB URI: ${DB_URI.replace(/:([^:@]+)@/, ':****@')}`); // Log sanitized URI
+
+mongoose.connect(DB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+})
+    .then(() => console.log('✅ MongoDB Connected Successfully'))
+    .catch(err => {
+        console.error('❌ CRITICAL DB Error:', err.message);
+        console.error('   Checking internet connection and IP whitelist...');
+    });
+
+// START SERVER IMMEDIATELY (Don't wait for DB, so we don't get Connection Refused)
+const PORT = process.env.PORT || 5555;
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on Port ${PORT}`);
+});
 
 // --- MOUNT ROUTES ---
 // --- MOUNT ROUTES ---
-app.use('/api/students', studentRoutes); // Handles /api/students/...
+// --- MOUNT ROUTES ---
 app.use('/api/auth', authRoutes);        // Handles /api/auth/...
 // --- RESTORED IMPORTS ---
 import parentRoutes from './routes/parentRoutes.js';
@@ -88,15 +102,13 @@ app.use('/api/projects', projectRoutes);
 import taskRoutes from './routes/taskRoutes.js';
 app.use('/api/tasks', taskRoutes);
 
+import eventRoutes from './routes/eventRoutes.js';
+app.use('/api/events', eventRoutes);
+
 // SERVE STATIC IMAGES
 import path from 'path';
 app.use('/uploads', express.static('uploads'));
 
 app.get('/', (req, res) => {
     res.send('✅ Backend is Running Successfully!');
-});
-
-const PORT = process.env.PORT || 5555;
-server.listen(PORT, () => {
-    console.log(`🚀 Server running on Port ${PORT}`);
 });

@@ -6,6 +6,11 @@ const leaveSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    // If applicant is PARENT, this links to the specific child
+    studentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Student'
+    },
     type: {
         type: String,
         required: true,

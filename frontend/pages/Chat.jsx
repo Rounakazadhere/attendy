@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
-import config from '../config';
+import { useAuth } from '../src/context/AuthContext';
+import config from '../src/config';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import { Send, User, MessageCircle } from 'lucide-react';
 import { io } from 'socket.io-client';

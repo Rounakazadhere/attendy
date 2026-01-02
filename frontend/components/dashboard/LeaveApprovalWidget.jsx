@@ -27,16 +27,25 @@ const LeaveApprovalWidget = () => {
     }, []);
 
     const handleAction = async (id, status) => {
+        let rejectionReason = "";
+
+        if (status === 'Rejected') {
+            const reason = window.prompt("Please provide a reason for rejection (optional):");
+            if (reason === null) return; // User cancelled
+            rejectionReason = reason;
+        }
+
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`${config.API_URL}/api/leave/${id}/status`, { status }, {
+            await axios.put(`${config.API_URL}/api/leave/${id}/status`, { status, rejectionReason }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             // Remove from list
             setRequests(requests.filter(req => req._id !== id));
             alert(`Leave request ${status.toLowerCase()}!`);
         } catch (err) {
-            alert(`Failed to ${status.toLowerCase()} request`);
+            console.error(err);
+            alert(`Failed to ${status.toLowerCase()} request: ${err.response?.data?.error || err.message}`);
         }
     };
 

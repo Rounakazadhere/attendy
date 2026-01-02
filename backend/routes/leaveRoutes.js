@@ -1,13 +1,15 @@
 import express from 'express';
 import Leave from '../models/Leave.js';
+import sendEmail from '../utils/sendEmail.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import { authorize } from '../middleware/roleMiddleware.js';
 
+
 const router = express.Router();
 
 // 1. Apply for Leave
-router.post('/apply', protect, authorize('ADMIN', 'PRINCIPAL', 'STAFF', 'TEACHER', 'STATE_ADMIN', 'DISTRICT_ADMIN', 'HEADMASTER'), async (req, res) => {
+router.post('/apply', protect, authorize('STAFF', 'TEACHER', 'PRINCIPAL', 'HEADMASTER'), async (req, res) => {
     try {
         const { type, dates, reason } = req.body;
         const newLeave = new Leave({
@@ -74,6 +76,20 @@ router.put('/:id/status', protect, authorize('ADMIN', 'PRINCIPAL', 'STATE_ADMIN'
             },
             { new: true }
         );
+
+        // Send Email Notification (Non-blocking)
+        const applicant = await User.findById(leave.applicantId);
+        if (applicant && applicant.email) {
+            const subject = `Leave Request ${status}`;
+            const message = `Dear ${applicant.name},\n\nYour leave request for ${leave.dates.join(", ")} has been ${status}.\n\n${status === 'Rejected' ? `Reason: ${rejectionReason}` : ''}\n\nRegards,\nSchool Administration`;
+
+            sendEmail({
+                email: applicant.email,
+                subject,
+                message
+            }).catch(err => console.error("⚠️ Leave Status Email Failed:", err.message));
+        }
+
         res.json(leave);
     } catch (err) {
         res.status(500).json({ error: err.message });

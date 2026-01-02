@@ -4,7 +4,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { X } from 'lucide-react';
 import config from '../../src/config';
 
-const LeaveWidget = ({ used, total }) => {
+const LeaveWidget = ({ used, total, allowApply = true }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -96,16 +96,18 @@ const LeaveWidget = ({ used, total }) => {
                 </div>
 
                 <div className="text-xl font-bold text-gray-800 mt-2">{used}/{total}</div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-3 rounded-xl transition-colors shadow-lg shadow-orange-200"
-                >
-                    Apply for leave
-                </button>
+                {allowApply && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-3 rounded-xl transition-colors shadow-lg shadow-orange-200"
+                    >
+                        Apply for leave
+                    </button>
+                )}
             </div>
 
             {/* Modal */}
-            {isModalOpen && (
+            {allowApply && isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
                         <button

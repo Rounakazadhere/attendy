@@ -1,0 +1,53 @@
+.gooey-nav-container {
+    position: relative;
+    background: white;
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    display: inline-flex;
+    align-items: center;
+}
+
+.gooey-nav-container nav ul {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 2rem;
+    position: relative;
+    z-index: 2;
+}
+
+.gooey-nav-container nav ul li a {
+    text-decoration: none;
+    color: #4b5563;
+    font-weight: 500;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    transition: color 0.3s ease;
+    display: block;
+}
+
+.gooey-nav-container nav ul li a:hover,
+.gooey-nav-container nav ul li.active a {
+    color: #111827;
+}
+
+.effect {
+    position: absolute;
+    background: #e5e7eb;
+    border-radius: 9999px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+}
+
+.gooey-nav-container:hover .effect {
+    opacity: 1;
+}
+
+/* Gooey filter approach usually needs SVG filter or specific box-shadow tricks.
+   For a simple "Gooey" nav compatible with React Bits, we use smooth sliding pill.
+   If true SVG/CSS filter is needed, simpler sliding background is safer/cleaner.
+*/
